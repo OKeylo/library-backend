@@ -1,29 +1,21 @@
-from database import sync_engine, async_engine
+from database import async_engine
 from sqlalchemy import Integer, String, bindparam, text, insert, select, update
 import asyncio
 from models import metadata_obj, authors
-from schemas import AuthorsAddDTO, AuthorsDTO
+from schemas import AuthorsAddDTO, AuthorsDTO, AuthorsUpdateDTO
 
-class SyncCore:
+class AsyncCore:
     @staticmethod
-    def create_tables():
-        sync_engine.echo = False
-        
-        metadata_obj.drop_all(sync_engine)
-        metadata_obj.create_all(sync_engine)
-        # Base.metadata.drop_all(sync_engine)
-        # Base.metadata.create_all(sync_engine)
-        sync_engine.echo = True
+    async def create_tables():
+        # sync_engine.echo = False
+        async with async_engine.begin() as conn:
+            # await conn.run_sync(metadata_obj.drop_all)
+            await conn.run_sync(metadata_obj.create_all)
+        # sync_engine.echo = True
 
     @staticmethod
-    def get_123_sync():
-        with sync_engine.connect() as conn:
-            res = conn.execute(text("SELECT 1,2,3 union select 4,5,6"))
-            print(f"{res.all()=}")
-
-    @staticmethod
-    def insert_author(author: AuthorsAddDTO):
-        with sync_engine.connect() as conn:
+    async def insert_author(author: AuthorsAddDTO):
+        async with async_engine.connect() as conn:
             stmt = """
                 INSERT INTO authors (full_name, nationality, birth_date)
                 VALUES
@@ -31,7 +23,7 @@ class SyncCore:
                 RETURNING id;
             """
             
-            result = conn.execute(
+            result = await conn.execute(
                 text(stmt),
                 {
                     "full_name": author.full_name,
@@ -41,7 +33,7 @@ class SyncCore:
             )
             author_id = result.fetchone()[0]
             
-            conn.commit()
+            await conn.commit()
 
             return author_id
         
@@ -55,14 +47,14 @@ class SyncCore:
             # conn.commit()
 
     @staticmethod
-    def select_authors():
-        with sync_engine.connect() as conn:
+    async def select_authors():
+        async with async_engine.connect() as conn:
             # query = select(authors)
             # result = conn.execute(query)
             # workers = result.all()
 
-            stmt = text("SELECT * FROM authors")
-            res = conn.execute(stmt)
+            stmt = "SELECT * FROM authors"
+            res = await conn.execute(text(stmt))
             result_core = res.fetchall()
             result_dto = [AuthorsDTO.model_validate(row, from_attributes=True) for row in result_core]
 
@@ -72,11 +64,28 @@ class SyncCore:
             return result_dto
 
     @staticmethod
-    def update_author(author_id: int = 2, new_nationality: str = "Русский"):
-        with sync_engine.connect() as conn:
-            stmt = text("UPDATE authors SET nationality=:nationality WHERE id=:id")
-            conn.execute(stmt, {"nationality": new_nationality, "id": author_id})
-            conn.commit()
+    async def update_author(author_id: int, update_data: AuthorsUpdateDTO):
+        async with async_engine.connect() as conn:
+            fields_to_update = []
+            params = {"id": author_id}
+
+            for field, value in update_data.model_dump(exclude_unset=True).items():
+                if value is not None:
+                    fields_to_update.append(f"{field} = :{field}")
+                    params[field] = value
+
+            if not fields_to_update:
+                return author_id
+            
+            set_clause = ", ".join(fields_to_update)
+            stmt = f"UPDATE authors SET {set_clause} WHERE id = :id"
+
+            await conn.execute(text(stmt), params)
+            
+            await conn.commit()
+
+            return author_id
+
             # stmt = (
             #     update(authors)
             #     .values(nationality=new_nationality)
@@ -85,18 +94,18 @@ class SyncCore:
             # )
             # conn.execute(stmt)
             # conn.commit()
+    
+    @staticmethod
+    async def delete_author(author_id: int):
+        async with async_engine.connect() as conn:
+            stmt = "DELETE FROM authors WHERE id = :id"
 
+            result = await conn.execute(text(stmt), {"id": author_id})
 
-async def get_123():
-    async with async_engine.connect() as conn:
-        res = await conn.execute(text("SELECT 1,2,3 union select 4,5,6"))
-        print(f"{res.all()=}")
+            if result.rowcount == 0:
+                return None
+            
+            await conn.commit()
 
-# asyncio.run(get_123())
-
-# def create_tables():
-#     sync_engine.echo = False
-#     metadata_obj.drop_all(sync_engine)
-#     metadata_obj.create_all(sync_engine)
-#     sync_engine.echo = True
+            return author_id
 
