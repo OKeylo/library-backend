@@ -14,3 +14,17 @@ class AuthorsUpdateDTO(BaseModel):
     full_name: Optional[str] = None
     nationality: Optional[str] = None
     birth_date: Optional[date] = None
+
+class GenresAddDTO(BaseModel):
+    name: str
+    description: str
+
+class GenresDTO(GenresAddDTO):
+    id: int
+
+class GenresUpdateDTO(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+
