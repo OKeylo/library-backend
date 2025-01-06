@@ -1,9 +1,20 @@
-from fastapi import Depends, FastAPI
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from queries.core import SyncCore
-from schemas import AuthorsAddDTO
+from queries.core import AsyncCore
+from database import async_engine
+from routers import authors
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await AsyncCore.create_tables()
+    print("База данных готова")
+
+    yield
+
+    await async_engine.dispose()
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -11,14 +22,4 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],
 )
 
-@app.get("/authors")
-def get_authors():
-    authors = SyncCore.select_authors()
-
-    return authors
-
-@app.post("/author")
-def create_author(author: AuthorsAddDTO = Depends()):
-    new_author_id = SyncCore.insert_author(author=author)
-
-    return {"id": new_author_id}
+app.include_router(authors.router)
