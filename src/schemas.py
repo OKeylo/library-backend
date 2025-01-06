@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import date
+from typing import Optional
 
 class AuthorsAddDTO(BaseModel):
     full_name: str
@@ -8,3 +9,8 @@ class AuthorsAddDTO(BaseModel):
 
 class AuthorsDTO(AuthorsAddDTO):
     id: int
+
+class AuthorsUpdateDTO(BaseModel):
+    full_name: Optional[str] = None
+    nationality: Optional[str] = None
+    birth_date: Optional[date] = None
