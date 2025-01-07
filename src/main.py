@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from queries.core import AsyncCore
 from database import async_engine
-from routers import authors
+from routers import authors, libraries
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,3 +23,4 @@ app.add_middleware(
 )
 
 app.include_router(authors.router)
+app.include_router(libraries.router)

@@ -2,14 +2,18 @@ from database import async_engine
 from sqlalchemy import Integer, String, bindparam, text, insert, select, update
 import asyncio
 from models import metadata_obj, authors
-from schemas import AuthorsAddDTO, AuthorsDTO, AuthorsUpdateDTO, GenresAddDTO, GenresDTO, GenresUpdateDTO
+from schemas import (
+    AuthorsAddDTO, AuthorsDTO, AuthorsUpdateDTO,
+    GenresAddDTO, GenresDTO, GenresUpdateDTO,
+    LibrariesAddDTO, LibrariesDTO, LibrariesUpdateDTO
+)
 
 class AsyncCore:
     @staticmethod
     async def create_tables():
         # sync_engine.echo = False
         async with async_engine.begin() as conn:
-            # await conn.run_sync(metadata_obj.drop_all)
+            await conn.run_sync(metadata_obj.drop_all)
             await conn.run_sync(metadata_obj.create_all)
         # sync_engine.echo = True
 
@@ -182,4 +186,79 @@ class AsyncCore:
             await conn.commit()
 
             return genre_id
+        
+    @staticmethod
+    async def insert_library(library: LibrariesAddDTO):
+        async with async_engine.connect() as conn:
+            stmt = """
+                INSERT INTO libraries (address, phone, email, director_full_name)
+                VALUES
+                    (:address, :phone, :email, :director_full_name)
+                RETURNING id;
+            """
+            
+            result = await conn.execute(
+                text(stmt),
+                {
+                    "address": library.address,
+                    "phone": library.phone,
+                    "email": library.email,
+                    "director_full_name": library.director_full_name
+                }
+            )
+            library_id = result.fetchone()[0]
+            
+            await conn.commit()
 
+            return library_id
+
+    @staticmethod
+    async def select_libraries():
+        async with async_engine.connect() as conn:
+
+            stmt = "SELECT * FROM libraries"
+            res = await conn.execute(text(stmt))
+            result_core = res.fetchall()
+            result_dto = [LibrariesDTO.model_validate(row, from_attributes=True) for row in result_core]
+
+            print(result_core)
+            print(result_dto)
+
+            return result_dto
+
+    @staticmethod
+    async def update_library(library_id: int, update_data: GenresUpdateDTO):
+        async with async_engine.connect() as conn:
+            fields_to_update = []
+            params = {"id": library_id}
+
+            for field, value in update_data.model_dump(exclude_unset=True).items():
+                if value is not None:
+                    fields_to_update.append(f"{field} = :{field}")
+                    params[field] = value
+
+            if not fields_to_update:
+                return library_id
+            
+            set_clause = ", ".join(fields_to_update)
+            stmt = f"UPDATE libraries SET {set_clause} WHERE id = :id"
+
+            await conn.execute(text(stmt), params)
+            
+            await conn.commit()
+
+            return library_id
+    
+    @staticmethod
+    async def delete_library(library_id: int):
+        async with async_engine.connect() as conn:
+            stmt = "DELETE FROM libraries WHERE id = :id"
+
+            result = await conn.execute(text(stmt), {"id": library_id})
+
+            if result.rowcount == 0:
+                return None
+            
+            await conn.commit()
+
+            return library_id
