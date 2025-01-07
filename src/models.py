@@ -55,7 +55,7 @@ libraries = Table(
     "libraries", metadata_obj,
     Column("id", Integer, primary_key=True),
     Column("address", String(50), nullable=False),
-    Column("phone", BigInteger, nullable=False),
+    Column("phone", String(12), nullable=False),
     Column("email", String(50), nullable=True),
     Column("director_full_name", String(100), nullable=True)
 )
