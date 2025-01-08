@@ -77,7 +77,7 @@ class BooksAddDTO(BaseModel):
     page_number: int
     price: int
     rating: int
-    age_limit: str
+    age_limit: int
     id_genre: Optional[int] = None
     id_author: Optional[int] = None
 
@@ -90,7 +90,7 @@ class BooksUpdateDTO(BaseModel):
     page_number: Optional[int] = None
     price: Optional[int] = None
     rating: Optional[int] = None
-    age_limit: Optional[str] = None
+    age_limit: Optional[int] = None
     id_genre: Optional[int] = None
     id_author: Optional[int] = None
 
@@ -117,4 +117,13 @@ class BookTransactionsUpdateDTO(BaseModel):
     issue_date: Optional[date] = None
     return_date: Optional[date] = None
 
+class BooksAuthorGenreDTO(BaseModel):
+    id: int
+    name: str
+    language: str
+    price: int
+    rating: int
+    age_limit: int
+    author_full_name: str
+    genre_name: str
 

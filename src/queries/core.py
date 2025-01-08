@@ -2,14 +2,11 @@ from typing import Type
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 from database import async_engine
-from sqlalchemy import Integer, String, Table, and_, bindparam, delete, text, insert, select, update
+from sqlalchemy import Integer, String, Table, and_, bindparam, delete, text, insert, select, update, asc, desc
 import asyncio
-from models import metadata_obj, authors, discounts
+from models import metadata_obj, authors, discounts, books, genres
 from schemas import (
-    AuthorsAddDTO, AuthorsDTO, AuthorsUpdateDTO,
-    GenresAddDTO, GenresDTO, GenresUpdateDTO,
-    LibrariesAddDTO, LibrariesDTO, LibrariesUpdateDTO,
-    DiscountsAddDTO, DiscountsDTO, DiscountsUpdateDTO
+    DiscountsAddDTO, DiscountsDTO, DiscountsUpdateDTO, BooksAuthorGenreDTO
 )
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -82,16 +79,16 @@ class AsyncCore:
             await conn.execute(text("""
                 INSERT INTO books (name, language, page_number, price, rating, age_limit, id_genre, id_author)
                 VALUES
-                ('War and Peace', 'Russian', 1225, 500, 10, '18+', 1, 1),
-                ('Principia Mathematica', 'English', 600, 1000, 9, '12+', 2, 2),
-                ('Harry Potter and the Philosopher''s Stone', 'English', 320, 400, 9, '6+', 3, 3),
-                ('The Shining', 'English', 650, 700, 8, '18+', 5, 4),
-                ('Murder on the Orient Express', 'English', 320, 350, 9, '16+', 5, 5),
-                ('The Catcher in the Rye', 'English', 277, 300, 8, '16+', 4, 1),
-                ('1984', 'English', 328, 400, 9, '16+', 4, 2),
-                ('The Hobbit', 'English', 310, 500, 10, '12+', 3, 3),
-                ('It', 'English', 1138, 800, 9, '18+', 5, 4),
-                ('Sherlock Holmes: The Complete Collection', 'English', 2800, 1500, 10, '16+', 5, 5);
+                ('War and Peace', 'Russian', 1225, 500, 10, 19, 1, 1),
+                ('Principia Mathematica', 'English', 600, 1000, 9, 13, 2, 2),
+                ('Harry Potter and the Philosopher''s Stone', 'English', 320, 400, 9, 7, 3, 3),
+                ('The Shining', 'English', 650, 700, 8, 19, 5, 4),
+                ('Murder on the Orient Express', 'English', 320, 350, 9, 17, 5, 5),
+                ('The Catcher in the Rye', 'English', 277, 300, 8, 17, 4, 1),
+                ('1984', 'English', 328, 400, 9, 17, 4, 2),
+                ('The Hobbit', 'English', 310, 500, 10, 13, 3, 3),
+                ('It', 'English', 1138, 800, 9, 19, 5, 4),
+                ('Sherlock Holmes: The Complete Collection', 'English', 2800, 1500, 10, 17, 5, 5);
             """))
 
             # Вставка в таблицу book_amounts
@@ -231,3 +228,61 @@ class AsyncCore:
             await conn.commit()
 
         return {"subscription": subscription, "sub_level": sub_level}
+    
+    @staticmethod
+    async def select_books_with_parameters(sort_field: str = "id", sort_order: str = "desc", name_contains: str = None, filter_field: str = None, filter_value: str = None):
+        available_columns = [col for col in books.columns.keys() if col not in ['id_author', 'id_genre']]
+        available_columns += ['author_full_name', 'genre_name']
+        
+        if sort_field not in available_columns:
+            raise HTTPException(400 ,f"Неверное имя поля. Возможные поля: {', '.join(available_columns)}")
+        
+        if sort_order not in ["asc", "desc"]:
+            raise HTTPException(400, "НЕверный порядок сортирвки. Используйте 'asc' или 'desc'.")
+
+        if filter_field and filter_field not in available_columns:
+            raise HTTPException(400, f"Неверное имя поля для фильтрации: {filter_field}. Возможные поля: {', '.join(available_columns)}")
+
+        order_clause = asc if sort_order == "asc" else desc
+        sort_column = getattr(books.c, sort_field)
+
+        filter_column = getattr(books.c, filter_field, None)
+
+        if filter_column is not None:
+            column_type = filter_column.type
+
+        async with async_engine.begin() as conn:
+            stmt = select(
+                books.c.id,
+                books.c.name,
+                books.c.language,
+                books.c.price,
+                books.c.rating,
+                books.c.age_limit,
+                authors.c.full_name.label("author_full_name"),
+                genres.c.name.label("genre_name")
+            ).join(
+                authors, books.c.id_author == authors.c.id, isouter=True
+            ).join(
+                genres, books.c.id_genre == genres.c.id, isouter=True
+            )
+
+            if name_contains:
+                stmt = stmt.where(books.c.name.ilike(f"%{name_contains}%"))
+
+            if filter_field and filter_value:
+                if isinstance(column_type, String):
+                    stmt = stmt.where(filter_column.ilike(f"%{filter_value}%"))
+                elif isinstance(column_type, Integer):
+                    stmt = stmt.where(filter_column == int(filter_value))  # Преобразуем в int
+                else:
+                    raise HTTPException(400, f"Неподдерживаемый тип для фильтрации: {column_type}")
+
+            stmt = stmt.order_by(order_clause(sort_column))
+
+            res = await conn.execute(stmt)
+            result_core = res.fetchall()
+
+            result_dto = [BooksAuthorGenreDTO.model_validate(row, from_attributes=True) for row in result_core]
+        
+        return result_dto

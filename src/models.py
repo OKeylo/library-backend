@@ -56,7 +56,7 @@ books = Table(
     Column("page_number", SmallInteger, nullable=False),
     Column("price", Integer, nullable=False),
     Column("rating", Integer, CheckConstraint("rating >= 0 AND rating <= 10"), nullable=False),
-    Column("age_limit", String(3), nullable=False),
+    Column("age_limit", Integer, CheckConstraint("age_limit >= 0 AND age_limit <= 19"), nullable=False),
     Column("id_genre", Integer, ForeignKey("genres.id"), nullable=True),
     Column("id_author", Integer, ForeignKey("authors.id"), nullable=True)
 )

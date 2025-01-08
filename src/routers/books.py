@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from queries.core import AsyncCore
 from schemas import BooksAddDTO, BooksUpdateDTO, BooksDTO
 from models import books
+from typing import Optional
 
 router = APIRouter(tags=["books"])
 
@@ -28,3 +29,14 @@ async def delete_book(id: int):
         raise HTTPException(404, "Книга с таким id не найдена!") 
 
     return {"id": id}
+
+@router.get("/books_with_parameters")
+async def get_books_with_parameters(
+    sort_field: str = "id",
+    sort_order: str = "desc",
+    name_contains: Optional[str] = None,
+    filter_field: str = None,
+    filter_value: str = None
+):
+    books_list = await AsyncCore.select_books_with_parameters(sort_field, sort_order, name_contains, filter_field, filter_value)
+    return books_list
