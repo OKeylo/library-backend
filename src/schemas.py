@@ -41,5 +41,80 @@ class LibrariesUpdateDTO(BaseModel):
     email: Optional[str] = None
     director_full_name: Optional[str] = None
 
+class DiscountsAddDTO(BaseModel):
+    subscription: str
+    sub_level: int
+    discount_value: int
+
+class DiscountsDTO(DiscountsAddDTO):
+    pass
+
+class DiscountsUpdateDTO(BaseModel):
+    discount_value: Optional[int] = None
+
+class UsersAddDTO(BaseModel):
+    full_name: str
+    phone: str
+    email: Optional[str] = None
+    subscription: Optional[str] = None
+    sub_level: Optional[int] = None
+    birth_date: date
+
+class UsersDTO(UsersAddDTO):
+    id: int
+
+class UsersUpdateDTO(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    subscription: Optional[str] = None
+    sub_level: Optional[int] = None
+    birth_date: Optional[date] = None
+
+class BooksAddDTO(BaseModel):
+    name: str
+    language: str
+    page_number: int
+    price: int
+    rating: int
+    age_limit: str
+    id_genre: Optional[int] = None
+    id_author: Optional[int] = None
+
+class BooksDTO(BooksAddDTO):
+    id: int
+
+class BooksUpdateDTO(BaseModel):
+    name: Optional[str] = None
+    language: Optional[str] = None
+    page_number: Optional[int] = None
+    price: Optional[int] = None
+    rating: Optional[int] = None
+    age_limit: Optional[str] = None
+    id_genre: Optional[int] = None
+    id_author: Optional[int] = None
+
+class BookAmountsAddDTO(BaseModel):
+    library_id: int
+    book_id: int
+    quantity: int
+
+class BookAmountsDTO(BookAmountsAddDTO):
+    pass
+
+class BookAmountsUpdateDTO(BaseModel):
+    quantity: Optional[int] = None
+
+class BookTransactionsAddDTO(BaseModel):
+    library_id: int
+    user_id: int
+    book_id: int
+
+class BookTransactionsDTO(BookTransactionsAddDTO):
+    id: int
+
+class BookTransactionsUpdateDTO(BaseModel):
+    issue_date: Optional[date] = None
+    return_date: Optional[date] = None
 
 
