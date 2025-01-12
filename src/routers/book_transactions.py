@@ -28,3 +28,8 @@ async def delete_book_transaction(id: int):
         raise HTTPException(404, "Запись о транзакции с таким id не найдена!") 
 
     return {"id": id}
+
+@router.post("/book_transactions_user")
+async def create_book_transaction(book_transaction: BookTransactionsAddDTO = Depends()):
+    new_book_transaction_id = await AsyncCore.take_book(book_transaction)
+    return {"id": new_book_transaction_id}

@@ -4,9 +4,9 @@ from pydantic import BaseModel
 from database import async_engine
 from sqlalchemy import Integer, String, Table, and_, bindparam, delete, text, insert, select, update, asc, desc
 import asyncio
-from models import metadata_obj, authors, discounts, books, genres
+from models import metadata_obj, authors, discounts, books, genres, users, book_transactions, book_amounts
 from schemas import (
-    DiscountsAddDTO, DiscountsDTO, DiscountsUpdateDTO, BooksAuthorGenreDTO
+    DiscountsAddDTO, DiscountsDTO, DiscountsUpdateDTO, BooksAuthorGenreDTO, UsersAddDTO, BookTransactionsAddDTO, BookAmountsUpdateDTO
 )
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -66,13 +66,13 @@ class AsyncCore:
 
             # Вставка в таблицу users
             await conn.execute(text("""
-                INSERT INTO users (full_name, phone, email, subscription, sub_level, birth_date)
+                INSERT INTO users (full_name, phone, password, email, subscription, sub_level, birth_date)
                 VALUES
-                ('Alexey Ivanov', 12345678901, 'alexey@mail.com', 'Basic', 1, '1995-05-15'),
-                ('Maria Petrova', 98765432100, 'maria@mail.com', 'Premium', 2, '1992-08-22'),
-                ('Dmitry Fedorov', 555888777, 'dmitry@mail.com', 'Gold', 3, '1988-03-10'),
-                ('Olga Smirnova', 666777888, 'olga@mail.com', 'Student', 5, '2000-12-01'),
-                ('Ivan Kuznetsov', 777666555, 'ivan@mail.com', 'Platinum', 4, '1990-06-14');
+                ('Alexey Ivanov', 12345678901, '123', 'alexey@mail.com', 'Basic', 1, '1995-05-15'),
+                ('Maria Petrova', 98765432100, '136', 'maria@mail.com', 'Premium', 2, '1992-08-22'),
+                ('Dmitry Fedorov', 555888777, '22952', 'dmitry@mail.com', 'Gold', 3, '1988-03-10'),
+                ('Olga Smirnova', 666777888, '8122', 'olga@mail.com', 'Student', 5, '2000-12-01'),
+                ('Ivan Kuznetsov', 777666555, '211', 'ivan@mail.com', 'Platinum', 4, '1990-06-14');
             """))
 
             # Вставка в таблицу books
@@ -100,7 +100,7 @@ class AsyncCore:
                 (2, 3, 15),
                 (2, 4, 7),
                 (1, 5, 8),
-                (1, 6, 4),
+                (1, 6, 0),
                 (2, 7, 12),
                 (2, 8, 10),
                 (1, 9, 6),
@@ -146,7 +146,7 @@ class AsyncCore:
             result_core = res.fetchall()
 
             result_dto = [dto.model_validate(row, from_attributes=True) for row in result_core]
-
+            
             return result_dto
 
     @staticmethod
@@ -211,7 +211,7 @@ class AsyncCore:
                     discounts.c.sub_level == sub_level
                 ))
                 .values(data)
-                .returning(discounts.c.subscription, discounts.c.sub_level)  # Можно вернуть значения ключей
+                .returning(discounts.c.subscription, discounts.c.sub_level)
             )
             await conn.execute(stmt)
             await conn.commit()
@@ -230,7 +230,7 @@ class AsyncCore:
         return {"subscription": subscription, "sub_level": sub_level}
     
     @staticmethod
-    async def select_books_with_parameters(sort_field: str = "id", sort_order: str = "desc", name_contains: str = None, filter_field: str = None, filter_value: str = None):
+    async def select_books_with_parameters(sort_field: str = "id", sort_order: str = "desc", name_contains: str = None, filter_field: str = "", filter_value: str = None):
         available_columns = [col for col in books.columns.keys() if col not in ['id_author', 'id_genre']]
         available_columns += ['author_full_name', 'genre_name']
         
@@ -274,7 +274,7 @@ class AsyncCore:
                 if isinstance(column_type, String):
                     stmt = stmt.where(filter_column.ilike(f"%{filter_value}%"))
                 elif isinstance(column_type, Integer):
-                    stmt = stmt.where(filter_column == int(filter_value))  # Преобразуем в int
+                    stmt = stmt.where(filter_column == int(filter_value))
                 else:
                     raise HTTPException(400, f"Неподдерживаемый тип для фильтрации: {column_type}")
 
@@ -286,3 +286,61 @@ class AsyncCore:
             result_dto = [BooksAuthorGenreDTO.model_validate(row, from_attributes=True) for row in result_core]
         
         return result_dto
+    
+    @staticmethod
+    async def create_user_by_phone(new_user: UsersAddDTO):
+        new_user_data = new_user.model_dump(exclude_unset=True)
+
+        async with async_engine.begin() as conn:
+            stmt = select(users).where(users.c.phone == new_user_data["phone"])
+            res = await conn.execute(stmt)
+            result_core = res.fetchone()
+
+            if result_core:
+                raise HTTPException(409, f"Пользователь с номером телефона {new_user_data["phone"]} уже существует.")
+
+            stmt_insert = insert(users).values(new_user_data).returning(users.c.id)
+            res_insert = await conn.execute(stmt_insert)
+            new_user_id = res_insert.fetchone()[0]
+
+        return new_user_id
+    
+    @staticmethod
+    async def take_book(transaction: BookTransactionsAddDTO):
+        transaction = transaction.model_dump(exclude_unset=True)
+
+        async with async_engine.begin() as conn:
+            stmt_update = (
+                update(book_amounts)
+                .where(and_(
+                    book_amounts.c.library_id == transaction["library_id"],
+                    book_amounts.c.book_id == transaction["book_id"]
+                ))
+                .values(quantity = book_amounts.c.quantity - 1))
+            await conn.execute(stmt_update)
+            
+            stmt_insert = insert(book_transactions).values(transaction).returning(book_transactions.c.id)
+            result = await conn.execute(stmt_insert)
+            record_id = result.fetchone()[0]
+                
+        return record_id
+    
+    @staticmethod
+    async def return_book(transaction_id: int):
+        transaction = transaction.model_dump(exclude_unset=True)
+
+        async with async_engine.begin() as conn:
+            stmt_update = (
+                update(book_amounts)
+                .where(and_(
+                    book_amounts.c.library_id == transaction["library_id"],
+                    book_amounts.c.book_id == transaction["book_id"]
+                ))
+                .values(quantity = book_amounts.c.quantity + 1))
+            await conn.execute(stmt_update)
+            
+            stmt_delete = delete(book_transactions).where(book_transactions.c.id == transaction_id).returning(book_transactions.c.id)
+            result = await conn.execute(stmt_delete)
+            record_id = result.fetchone()[0]
+                
+        return record_id

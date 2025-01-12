@@ -35,7 +35,7 @@ async def get_books_with_parameters(
     sort_field: str = "id",
     sort_order: str = "desc",
     name_contains: Optional[str] = None,
-    filter_field: str = None,
+    filter_field: str = "",
     filter_value: str = None
 ):
     books_list = await AsyncCore.select_books_with_parameters(sort_field, sort_order, name_contains, filter_field, filter_value)

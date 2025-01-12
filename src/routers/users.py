@@ -28,3 +28,9 @@ async def delete_user(id: int):
         raise HTTPException(404, "Пользователь с таким id не найден!") 
 
     return {"id": id}
+
+@router.post("/users_phone")
+async def create_user(user: UsersAddDTO = Depends()):
+    new_user_id = await AsyncCore.create_user_by_phone(user)
+
+    return {"id": new_user_id}

@@ -55,6 +55,7 @@ class DiscountsUpdateDTO(BaseModel):
 class UsersAddDTO(BaseModel):
     full_name: str
     phone: str
+    password: str
     email: Optional[str] = None
     subscription: Optional[str] = None
     sub_level: Optional[int] = None
@@ -62,10 +63,12 @@ class UsersAddDTO(BaseModel):
 
 class UsersDTO(UsersAddDTO):
     id: int
+    is_admin: bool
 
 class UsersUpdateDTO(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
+    password: Optional[str] = None
     email: Optional[str] = None
     subscription: Optional[str] = None
     sub_level: Optional[int] = None

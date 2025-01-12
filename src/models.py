@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, MetaData, PrimaryKeyConstraint, Table, Column, Integer, String, BigInteger, Date, SmallInteger, CheckConstraint, func
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, MetaData, PrimaryKeyConstraint, Table, Column, Integer, String, BigInteger, Date, SmallInteger, CheckConstraint, func, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import date, timedelta
 
@@ -40,7 +40,9 @@ users = Table(
     "users", metadata_obj,
     Column("id", Integer, primary_key=True),
     Column("full_name", String(100), nullable=False),
-    Column("phone", BigInteger, unique=True, nullable=False),
+    Column("phone", String(12), unique=True, nullable=False),
+    Column("password", String(50), nullable=False),
+    Column("is_admin", Boolean, nullable=False, server_default="0"),
     Column("email", String(50), nullable=True),
     Column("subscription", String(50), nullable=True),
     Column("sub_level", Integer, nullable=True),
