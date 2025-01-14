@@ -33,3 +33,8 @@ async def delete_book_transaction(id: int):
 async def create_book_transaction(book_transaction: BookTransactionsAddDTO = Depends()):
     new_book_transaction_id = await AsyncCore.take_book(book_transaction)
     return {"id": new_book_transaction_id}
+
+@router.delete("/book_transactions_user")
+async def return_book_transaction(book_transaction: BookTransactionsDTO = Depends()):
+    return_transaction_id = await AsyncCore.return_book(book_transaction)
+    return {"id": return_transaction_id}

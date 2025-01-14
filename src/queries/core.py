@@ -1,4 +1,5 @@
 from typing import Type
+import bcrypt
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 from database import async_engine
@@ -6,7 +7,7 @@ from sqlalchemy import Integer, String, Table, and_, bindparam, delete, text, in
 import asyncio
 from models import metadata_obj, authors, discounts, books, genres, users, book_transactions, book_amounts
 from schemas import (
-    DiscountsAddDTO, DiscountsDTO, DiscountsUpdateDTO, BooksAuthorGenreDTO, UsersAddDTO, BookTransactionsAddDTO, BookAmountsUpdateDTO
+    DiscountsAddDTO, DiscountsDTO, DiscountsUpdateDTO, BooksAuthorGenreDTO, UsersAddDTO, BookTransactionsAddDTO, BookAmountsUpdateDTO, BookTransactionsDTO, UsersDTO
 )
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -66,13 +67,13 @@ class AsyncCore:
 
             # Вставка в таблицу users
             await conn.execute(text("""
-                INSERT INTO users (full_name, phone, password, email, subscription, sub_level, birth_date)
+                INSERT INTO users (full_name, phone, password, subscription, sub_level, birth_date)
                 VALUES
-                ('Alexey Ivanov', 12345678901, '123', 'alexey@mail.com', 'Basic', 1, '1995-05-15'),
-                ('Maria Petrova', 98765432100, '136', 'maria@mail.com', 'Premium', 2, '1992-08-22'),
-                ('Dmitry Fedorov', 555888777, '22952', 'dmitry@mail.com', 'Gold', 3, '1988-03-10'),
-                ('Olga Smirnova', 666777888, '8122', 'olga@mail.com', 'Student', 5, '2000-12-01'),
-                ('Ivan Kuznetsov', 777666555, '211', 'ivan@mail.com', 'Platinum', 4, '1990-06-14');
+                ('Alexey Ivanov', 12345678901, '123', 'Basic', 1, '1995-05-15'),
+                ('Maria Petrova', 98765432100, '136', 'Premium', 2, '1992-08-22'),
+                ('Dmitry Fedorov', 555888777, '22952', 'Gold', 3, '1988-03-10'),
+                ('Olga Smirnova', 666777888, '8122', 'Student', 5, '2000-12-01'),
+                ('Ivan Kuznetsov', 777666555, '211', 'Platinum', 4, '1990-06-14');
             """))
 
             # Вставка в таблицу books
@@ -100,7 +101,7 @@ class AsyncCore:
                 (2, 3, 15),
                 (2, 4, 7),
                 (1, 5, 8),
-                (1, 6, 0),
+                (1, 6, 2),
                 (2, 7, 12),
                 (2, 8, 10),
                 (1, 9, 6),
@@ -326,7 +327,7 @@ class AsyncCore:
         return record_id
     
     @staticmethod
-    async def return_book(transaction_id: int):
+    async def return_book(transaction: BookTransactionsDTO):
         transaction = transaction.model_dump(exclude_unset=True)
 
         async with async_engine.begin() as conn:
@@ -339,8 +340,63 @@ class AsyncCore:
                 .values(quantity = book_amounts.c.quantity + 1))
             await conn.execute(stmt_update)
             
-            stmt_delete = delete(book_transactions).where(book_transactions.c.id == transaction_id).returning(book_transactions.c.id)
+            stmt_delete = delete(book_transactions).where(book_transactions.c.id == transaction["id"]).returning(book_transactions.c.id)
             result = await conn.execute(stmt_delete)
             record_id = result.fetchone()[0]
                 
         return record_id
+    
+    @staticmethod
+    async def get_user_by_phone(phone: str):
+        async with async_engine.connect() as conn:
+            stmt = select(users).where(users.c.phone == phone)
+            res = await conn.execute(stmt)
+        
+            user = res.fetchone()
+
+        if user:
+            return UsersDTO.model_validate(user, from_attributes=True)
+        return None
+    
+    @staticmethod
+    async def add_user(user_data: UsersAddDTO) -> dict:
+        salt = bcrypt.gensalt()
+        password_hashed = bcrypt.hashpw(user_data.password.encode("utf-8"), salt)
+        user_data.password = password_hashed.decode('utf-8')
+
+        data = user_data.model_dump(exclude_unset=True)
+
+        async with async_engine.connect() as conn:
+            stmt = insert(users).values(data).returning(users.c.id)
+            result = await conn.execute(stmt)
+            record_id = result.fetchone()[0]
+            
+            await conn.commit()
+            
+        return record_id
+    
+    @staticmethod
+    async def get_user_info(user_id: int):
+        async with async_engine.connect() as conn:
+            query = select([
+                users.c.full_name,
+                users.c.phone,
+                users.c.email,
+                users.c.subscription,
+                users.c.sub_level,
+                users.c.birth_date
+            ]).where(users.c.id == user_id)
+
+            result = await conn.execute(query)
+            user_info = await result.fetchone()
+
+            if user_info:
+                return {
+                    "full_name": user_info.full_name,
+                    "phone": user_info.phone,
+                    "subscription": user_info.subscription,
+                    "sub_level": user_info.sub_level,
+                    "birth_date": user_info.birth_date
+                }
+            else:
+                raise HTTPException(status_code=404, detail="User not found")

@@ -60,19 +60,22 @@ class UsersAddDTO(BaseModel):
     subscription: Optional[str] = None
     sub_level: Optional[int] = None
     birth_date: date
+    is_admin: bool = False
 
 class UsersDTO(UsersAddDTO):
     id: int
-    is_admin: bool
 
 class UsersUpdateDTO(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
     password: Optional[str] = None
-    email: Optional[str] = None
     subscription: Optional[str] = None
     sub_level: Optional[int] = None
     birth_date: Optional[date] = None
+
+class UsersLoginDTO(BaseModel):
+    phone: str
+    password: str
 
 class BooksAddDTO(BaseModel):
     name: str
