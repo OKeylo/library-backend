@@ -56,7 +56,6 @@ class UsersAddDTO(BaseModel):
     full_name: str
     phone: str
     password: str
-    email: Optional[str] = None
     subscription: Optional[str] = None
     sub_level: Optional[int] = None
     birth_date: date

@@ -298,7 +298,7 @@ class AsyncCore:
             result_core = res.fetchone()
 
             if result_core:
-                raise HTTPException(409, f"Пользователь с номером телефона {new_user_data["phone"]} уже существует.")
+                raise HTTPException(409, f"Пользователь с номером телефона {new_user_data['phone']} уже существует.")
 
             stmt_insert = insert(users).values(new_user_data).returning(users.c.id)
             res_insert = await conn.execute(stmt_insert)
@@ -378,14 +378,13 @@ class AsyncCore:
     @staticmethod
     async def get_user_info(user_id: int):
         async with async_engine.connect() as conn:
-            query = select([
+            query = select(
                 users.c.full_name,
                 users.c.phone,
-                users.c.email,
                 users.c.subscription,
                 users.c.sub_level,
                 users.c.birth_date
-            ]).where(users.c.id == user_id)
+            ).where(users.c.id == user_id)
 
             result = await conn.execute(query)
             user_info = await result.fetchone()
