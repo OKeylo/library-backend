@@ -47,7 +47,7 @@ async def create_user(
 ):
     check_existing_phone = await AsyncCore.get_user_by_phone(user.phone)
     if check_existing_phone:
-        raise HTTPException(406, "User with this phone already exists")
+        raise HTTPException(406, "Номер занят")
     
     user = UsersAddDTO(
         full_name=user.full_name,
@@ -67,10 +67,10 @@ async def user_login(user: UsersLoginDTO = Body(...)):
     response: UsersDTO = await AsyncCore.get_user_by_phone(user.phone)
 
     if not response:
-        return { "error": "Wrong phone!" }
+        raise HTTPException(406, "Такого пользователя не существует")
     
     if not bcrypt.checkpw(user.password.encode("utf-8"), response.password.encode("utf-8")):
-        return { "error": "Wrong password!" }
+        raise HTTPException(406, "Неверный пароль")
     
     return signJWT(user.phone)
     
