@@ -7,7 +7,9 @@ from sqlalchemy import Integer, String, Table, and_, bindparam, delete, text, in
 import asyncio
 from models import metadata_obj, authors, discounts, books, genres, users, book_transactions, book_amounts, libraries
 from schemas import (
-    DiscountsAddDTO, DiscountsDTO, DiscountsUpdateDTO, BooksAuthorGenreDTO, UsersAddDTO, BookTransactionsAddDTO, BookAmountsUpdateDTO, BookTransactionsDTO, UsersDTO, UsersWithDiscountValueDTO
+    DiscountsAddDTO, DiscountsDTO, DiscountsUpdateDTO, BooksAuthorGenreDTO,
+    UsersAddDTO, BookTransactionsAddDTO, BookAmountsUpdateDTO, BookTransactionsDTO, UsersDTO,
+    UsersWithDiscountValueDTO, UserTransactionBooksDTO, BookTransactionsDeleteDTO
 )
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -107,7 +109,7 @@ class AsyncCore:
                 (2, 7, 12),
                 (2, 8, 10),
                 (1, 9, 6),
-                (1, 10, 20);
+                (1, 10, 5);
             """))
 
             # Вставка в таблицу book_transactions
@@ -232,34 +234,6 @@ class AsyncCore:
 
         return {"subscription": subscription, "sub_level": sub_level}
     
-    '''
-    SELECT
-        books.id, books.name,
-        books.language,
-        books.price,
-        books.rating,
-        books.age_limit,
-        authors.full_name AS author_full_name,
-        genres.name AS genre_name,
-        libraries.address AS library_address
-    FROM books
-    LEFT OUTER JOIN authors
-    ON books.id_author = authors.id
-    LEFT OUTER JOIN genres
-    ON books.id_genre = genres.id
-    LEFT OUTER JOIN book_amounts
-    ON books.id = book_amounts.book_id
-    LEFT OUTER JOIN libraries
-    ON book_amounts.library_id = libraries.id
-    WHERE
-        book_amounts.quantity > $1::INTEGER
-    AND
-        books.name ILIKE $2::VARCHAR
-    AND 
-        books.age_limit = $3::INTEGER
-    ORDER BY books.id DESC
-    '''
-    
     @staticmethod
     async def select_books_with_parameters(sort_field: str = "id", sort_order: str = "desc", name_contains: str = None, filter_field: str = "", filter_value: str = None):
         available_columns = [col for col in books.columns.keys() if col not in ['id_author', 'id_genre']]
@@ -283,28 +257,6 @@ class AsyncCore:
             column_type = filter_column.type
 
         async with async_engine.begin() as conn:
-            # stmt = select(
-            #     books.c.id,
-            #     books.c.name,
-            #     books.c.language,
-            #     books.c.price,
-            #     books.c.rating,
-            #     books.c.age_limit,
-            #     authors.c.full_name.label("author_full_name"),
-            #     genres.c.name.label("genre_name"),
-            #     libraries.c.address.label("library_address")
-            # ).join(
-            #     authors, books.c.id_author == authors.c.id, isouter=True
-            # ).join(
-            #     genres, books.c.id_genre == genres.c.id, isouter=True
-            # ).join(
-            # book_amounts, books.c.id == book_amounts.c.book_id, isouter=True  # Присоединяем таблицу с количеством книг
-            # ).join(
-            #     libraries, book_amounts.c.library_id == libraries.c.id, isouter=True  # Присоединяем таблицу библиотек
-            # ).where(
-            #     book_amounts.c.quantity > 0  # Условие: количество книги больше 0
-            # )
-
             stmt = select(
                 books.c.id.label("book_id"),
                 books.c.name.label("book_name"),
@@ -392,7 +344,7 @@ class AsyncCore:
         return record_id
     
     @staticmethod
-    async def return_book(transaction: BookTransactionsDTO):
+    async def return_book(transaction: BookTransactionsDeleteDTO):
         transaction = transaction.model_dump(exclude_unset=True)
 
         async with async_engine.begin() as conn:
@@ -418,6 +370,7 @@ class AsyncCore:
                 users.c.id,
                 users.c.full_name,
                 users.c.phone,
+                users.c.password,
                 discounts.c.discount_value.label("subscription_value"),
                 users.c.birth_date,
                 users.c.is_admin
@@ -474,3 +427,41 @@ class AsyncCore:
                 }
             else:
                 raise HTTPException(status_code=404, detail="User not found")
+            
+    @staticmethod
+    async def get_user_books(user_id: int):
+        async with async_engine.connect() as conn:
+            stmt = select(
+                book_transactions.c.id,
+                books.c.id.label("book_id"),
+                books.c.name.label("book_name"),
+                books.c.language.label("book_language"),
+                books.c.page_number.label("book_page_number"),
+                books.c.price.label("book_price"),
+                books.c.rating.label("book_rating"),
+                books.c.age_limit.label("book_age_limit"),
+                authors.c.full_name.label("author_full_name"),
+                genres.c.name.label("genre_name"),
+                libraries.c.id.label("library_id"),
+                libraries.c.address.label("library_address"),
+                libraries.c.phone.label("library_phone")
+            ).select_from(
+                book_transactions
+            ).join(
+                books, book_transactions.c.book_id == books.c.id
+            ).join(
+                authors, books.c.id_author == authors.c.id, isouter=True
+            ).join(
+                genres, books.c.id_genre == genres.c.id, isouter=True
+            ).join(
+                libraries, book_transactions.c.library_id == libraries.c.id
+            ).where(
+                book_transactions.c.user_id == user_id
+            ).order_by(desc(book_transactions.c.id))
+
+            res = await conn.execute(stmt)
+            result_core = res.fetchall()
+
+            result_dto = [UserTransactionBooksDTO.model_validate(row, from_attributes=True) for row in result_core]
+        
+        return result_dto
