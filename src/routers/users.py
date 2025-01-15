@@ -81,11 +81,8 @@ async def get_current_user(request: Request):
 
     if not user:
         raise HTTPException(400, "Something went wrong / Bad Request")
-    
-    user_dict = user.model_dump()
-    del user_dict["password"]
 
-    return user_dict
+    return user
 
 @router.get("/users/{user_id}")
 async def get_user_info(user_id: int):

@@ -64,6 +64,14 @@ class UsersAddDTO(BaseModel):
 class UsersDTO(UsersAddDTO):
     id: int
 
+class UsersWithDiscountValueDTO(BaseModel):
+    id: int
+    full_name: str
+    phone: str
+    subscription_value: int
+    birth_date: date
+    is_admin: bool = False
+
 class UsersUpdateDTO(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
@@ -123,12 +131,15 @@ class BookTransactionsUpdateDTO(BaseModel):
     return_date: Optional[date] = None
 
 class BooksAuthorGenreDTO(BaseModel):
-    id: int
-    name: str
-    language: str
-    price: int
-    rating: int
-    age_limit: int
+    book_id: int
+    book_name: str
+    book_language: str
+    book_page_number: int
+    book_price: int
+    book_rating: int
+    book_age_limit: int
     author_full_name: str
     genre_name: str
+    library_id: int
+    library_address: str    
 

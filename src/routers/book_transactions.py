@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from queries.core import AsyncCore
 from schemas import BookTransactionsAddDTO, BookTransactionsUpdateDTO, BookTransactionsDTO
 from models import book_transactions
+from models_auth.auth_bearer import JWTBearer
 
 router = APIRouter(tags=["book_transactions"])
 
@@ -29,12 +30,12 @@ async def delete_book_transaction(id: int):
 
     return {"id": id}
 
-@router.post("/book_transactions_user")
-async def create_book_transaction(book_transaction: BookTransactionsAddDTO = Depends()):
+@router.post("/book_transactions_user", dependencies=[Depends(JWTBearer())])
+async def create_book_transaction(book_transaction: BookTransactionsAddDTO):
     new_book_transaction_id = await AsyncCore.take_book(book_transaction)
     return {"id": new_book_transaction_id}
 
 @router.delete("/book_transactions_user")
-async def return_book_transaction(book_transaction: BookTransactionsDTO = Depends()):
+async def return_book_transaction(book_transaction: BookTransactionsDTO):
     return_transaction_id = await AsyncCore.return_book(book_transaction)
     return {"id": return_transaction_id}

@@ -5,9 +5,9 @@ from pydantic import BaseModel
 from database import async_engine
 from sqlalchemy import Integer, String, Table, and_, bindparam, delete, text, insert, select, update, asc, desc
 import asyncio
-from models import metadata_obj, authors, discounts, books, genres, users, book_transactions, book_amounts
+from models import metadata_obj, authors, discounts, books, genres, users, book_transactions, book_amounts, libraries
 from schemas import (
-    DiscountsAddDTO, DiscountsDTO, DiscountsUpdateDTO, BooksAuthorGenreDTO, UsersAddDTO, BookTransactionsAddDTO, BookAmountsUpdateDTO, BookTransactionsDTO, UsersDTO
+    DiscountsAddDTO, DiscountsDTO, DiscountsUpdateDTO, BooksAuthorGenreDTO, UsersAddDTO, BookTransactionsAddDTO, BookAmountsUpdateDTO, BookTransactionsDTO, UsersDTO, UsersWithDiscountValueDTO
 )
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -58,7 +58,7 @@ class AsyncCore:
             await conn.execute(text("""
                 INSERT INTO discounts (subscription, sub_level, discount_value)
                 VALUES
-                ('Basic', 1, 5),
+                ('Basic', 1, 0),
                 ('Premium', 2, 15),
                 ('Gold', 3, 20),
                 ('Platinum', 4, 25),
@@ -80,16 +80,16 @@ class AsyncCore:
             await conn.execute(text("""
                 INSERT INTO books (name, language, page_number, price, rating, age_limit, id_genre, id_author)
                 VALUES
-                ('War and Peace', 'Russian', 1225, 500, 10, 19, 1, 1),
-                ('Principia Mathematica', 'English', 600, 1000, 9, 13, 2, 2),
-                ('Harry Potter and the Philosopher''s Stone', 'English', 320, 400, 9, 7, 3, 3),
-                ('The Shining', 'English', 650, 700, 8, 19, 5, 4),
-                ('Murder on the Orient Express', 'English', 320, 350, 9, 17, 5, 5),
-                ('The Catcher in the Rye', 'English', 277, 300, 8, 17, 4, 1),
-                ('1984', 'English', 328, 400, 9, 17, 4, 2),
-                ('The Hobbit', 'English', 310, 500, 10, 13, 3, 3),
-                ('It', 'English', 1138, 800, 9, 19, 5, 4),
-                ('Sherlock Holmes: The Complete Collection', 'English', 2800, 1500, 10, 17, 5, 5);
+                ('War and Peace', 'Russian', 1225, 500, 10, 18, 1, 1),
+                ('Principia Mathematica', 'English', 600, 1000, 9, 12, 2, 2),
+                ('Harry Potter and the Philosopher''s Stone', 'English', 320, 400, 9, 6, 3, 3),
+                ('The Shining', 'English', 650, 700, 8, 18, 5, 4),
+                ('Murder on the Orient Express', 'English', 320, 350, 9, 18, 5, 5),
+                ('The Catcher in the Rye', 'English', 277, 300, 8, 18, 4, 1),
+                ('1984', 'English', 328, 400, 9, 18, 4, 2),
+                ('The Hobbit', 'English', 310, 500, 10, 12, 3, 3),
+                ('It', 'English', 1138, 800, 9, 18, 5, 4),
+                ('Sherlock Holmes: The Complete Collection', 'English', 2800, 1500, 10, 16, 5, 5);
             """))
 
             # Вставка в таблицу book_amounts
@@ -97,7 +97,9 @@ class AsyncCore:
                 INSERT INTO book_amounts (library_id, book_id, quantity)
                 VALUES
                 (1, 1, 10),
+                (2, 1, 0),
                 (1, 2, 5),
+                (2, 2, 15),
                 (2, 3, 15),
                 (2, 4, 7),
                 (1, 5, 8),
@@ -230,6 +232,34 @@ class AsyncCore:
 
         return {"subscription": subscription, "sub_level": sub_level}
     
+    '''
+    SELECT
+        books.id, books.name,
+        books.language,
+        books.price,
+        books.rating,
+        books.age_limit,
+        authors.full_name AS author_full_name,
+        genres.name AS genre_name,
+        libraries.address AS library_address
+    FROM books
+    LEFT OUTER JOIN authors
+    ON books.id_author = authors.id
+    LEFT OUTER JOIN genres
+    ON books.id_genre = genres.id
+    LEFT OUTER JOIN book_amounts
+    ON books.id = book_amounts.book_id
+    LEFT OUTER JOIN libraries
+    ON book_amounts.library_id = libraries.id
+    WHERE
+        book_amounts.quantity > $1::INTEGER
+    AND
+        books.name ILIKE $2::VARCHAR
+    AND 
+        books.age_limit = $3::INTEGER
+    ORDER BY books.id DESC
+    '''
+    
     @staticmethod
     async def select_books_with_parameters(sort_field: str = "id", sort_order: str = "desc", name_contains: str = None, filter_field: str = "", filter_value: str = None):
         available_columns = [col for col in books.columns.keys() if col not in ['id_author', 'id_genre']]
@@ -239,7 +269,7 @@ class AsyncCore:
             raise HTTPException(400 ,f"Неверное имя поля. Возможные поля: {', '.join(available_columns)}")
         
         if sort_order not in ["asc", "desc"]:
-            raise HTTPException(400, "НЕверный порядок сортирвки. Используйте 'asc' или 'desc'.")
+            raise HTTPException(400, "Неверный порядок сортирвки. Используйте 'asc' или 'desc'.")
 
         if filter_field and filter_field not in available_columns:
             raise HTTPException(400, f"Неверное имя поля для фильтрации: {filter_field}. Возможные поля: {', '.join(available_columns)}")
@@ -253,19 +283,52 @@ class AsyncCore:
             column_type = filter_column.type
 
         async with async_engine.begin() as conn:
+            # stmt = select(
+            #     books.c.id,
+            #     books.c.name,
+            #     books.c.language,
+            #     books.c.price,
+            #     books.c.rating,
+            #     books.c.age_limit,
+            #     authors.c.full_name.label("author_full_name"),
+            #     genres.c.name.label("genre_name"),
+            #     libraries.c.address.label("library_address")
+            # ).join(
+            #     authors, books.c.id_author == authors.c.id, isouter=True
+            # ).join(
+            #     genres, books.c.id_genre == genres.c.id, isouter=True
+            # ).join(
+            # book_amounts, books.c.id == book_amounts.c.book_id, isouter=True  # Присоединяем таблицу с количеством книг
+            # ).join(
+            #     libraries, book_amounts.c.library_id == libraries.c.id, isouter=True  # Присоединяем таблицу библиотек
+            # ).where(
+            #     book_amounts.c.quantity > 0  # Условие: количество книги больше 0
+            # )
+
             stmt = select(
-                books.c.id,
-                books.c.name,
-                books.c.language,
-                books.c.price,
-                books.c.rating,
-                books.c.age_limit,
+                books.c.id.label("book_id"),
+                books.c.name.label("book_name"),
+                books.c.language.label("book_language"),
+                books.c.page_number.label("book_page_number"),
+                books.c.price.label("book_price"),
+                books.c.rating.label("book_rating"),
+                books.c.age_limit.label("book_age_limit"),
                 authors.c.full_name.label("author_full_name"),
-                genres.c.name.label("genre_name")
+                genres.c.name.label("genre_name"),
+                libraries.c.id.label("library_id"),
+                libraries.c.address.label("library_address")
+            ).select_from(
+                book_amounts
+            ).join(
+                books, book_amounts.c.book_id == books.c.id, isouter=True
             ).join(
                 authors, books.c.id_author == authors.c.id, isouter=True
             ).join(
                 genres, books.c.id_genre == genres.c.id, isouter=True
+            ).join(
+                libraries, book_amounts.c.library_id == libraries.c.id, isouter=True
+            ).where(
+                book_amounts.c.quantity > 0
             )
 
             if name_contains:
@@ -317,9 +380,11 @@ class AsyncCore:
                     book_amounts.c.library_id == transaction["library_id"],
                     book_amounts.c.book_id == transaction["book_id"]
                 ))
-                .values(quantity = book_amounts.c.quantity - 1))
-            await conn.execute(stmt_update)
-            
+                .values(quantity = book_amounts.c.quantity - 1)
+                .returning(book_amounts.c.quantity)
+            )
+            book_quantity = await conn.execute(stmt_update)
+
             stmt_insert = insert(book_transactions).values(transaction).returning(book_transactions.c.id)
             result = await conn.execute(stmt_insert)
             record_id = result.fetchone()[0]
@@ -345,17 +410,27 @@ class AsyncCore:
             record_id = result.fetchone()[0]
                 
         return record_id
-    
+
     @staticmethod
     async def get_user_by_phone(phone: str):
         async with async_engine.connect() as conn:
-            stmt = select(users).where(users.c.phone == phone)
+            stmt = select(
+                users.c.id,
+                users.c.full_name,
+                users.c.phone,
+                discounts.c.discount_value.label("subscription_value"),
+                users.c.birth_date,
+                users.c.is_admin
+            ).join(
+                discounts, and_(users.c.subscription == discounts.c.subscription, users.c.sub_level == discounts.c.sub_level), isouter=True
+            ).where(users.c.phone == phone)
+            
             res = await conn.execute(stmt)
-        
+
             user = res.fetchone()
 
         if user:
-            return UsersDTO.model_validate(user, from_attributes=True)
+            return UsersWithDiscountValueDTO.model_validate(user, from_attributes=True)
         return None
     
     @staticmethod

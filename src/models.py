@@ -43,8 +43,8 @@ users = Table(
     Column("phone", String(12), unique=True, nullable=False),
     Column("password", String(100), nullable=False),
     Column("is_admin", Boolean, nullable=False, server_default="0"),
-    Column("subscription", String(50), nullable=True),
-    Column("sub_level", Integer, nullable=True),
+    Column("subscription", String(50), nullable=True, server_default="Basic"),
+    Column("sub_level", Integer, nullable=True, server_default="1"),
     Column("birth_date", Date, nullable=False),
     ForeignKeyConstraint(["subscription", "sub_level"], ["discounts.subscription", "discounts.sub_level"], ondelete="SET NULL")
 )
