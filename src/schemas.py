@@ -158,6 +158,8 @@ class BooksAuthorGenreDTO(BaseModel):
 
 class UserTransactionBooksDTO(BaseModel):
     id: int
+    issue_date: date
+    return_date: date
     book_id: int
     book_name: str
     book_language: str

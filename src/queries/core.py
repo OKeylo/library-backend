@@ -459,6 +459,8 @@ class AsyncCore:
         async with async_engine.connect() as conn:
             stmt = select(
                 book_transactions.c.id,
+                book_transactions.c.issue_date,
+                book_transactions.c.return_date,
                 books.c.id.label("book_id"),
                 books.c.name.label("book_name"),
                 books.c.language.label("book_language"),
