@@ -46,7 +46,7 @@ users = Table(
     Column("subscription", String(50), nullable=True, server_default="Basic"),
     Column("sub_level", Integer, nullable=True, server_default="1"),
     Column("birth_date", Date, nullable=False),
-    ForeignKeyConstraint(["subscription", "sub_level"], ["discounts.subscription", "discounts.sub_level"], ondelete="SET NULL")
+    ForeignKeyConstraint(["subscription", "sub_level"], ["discounts.subscription", "discounts.sub_level"], ondelete="SET DEFAULT", onupdate="CASCADE")
 )
 
 books = Table(
@@ -64,8 +64,8 @@ books = Table(
 
 book_amounts = Table(
     "book_amounts", metadata_obj,
-    Column("library_id", Integer, ForeignKey("libraries.id", ondelete="CASCADE"), nullable=False),
-    Column("book_id", Integer, ForeignKey("books.id", ondelete="CASCADE"), nullable=False),
+    Column("library_id", Integer, ForeignKey("libraries.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False),
+    Column("book_id", Integer, ForeignKey("books.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False),
     Column("quantity", Integer, CheckConstraint("quantity >= 0"), nullable=False),
     PrimaryKeyConstraint("library_id", "book_id")
 )

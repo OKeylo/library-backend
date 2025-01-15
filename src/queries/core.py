@@ -268,7 +268,8 @@ class AsyncCore:
                 authors.c.full_name.label("author_full_name"),
                 genres.c.name.label("genre_name"),
                 libraries.c.id.label("library_id"),
-                libraries.c.address.label("library_address")
+                libraries.c.address.label("library_address"),
+                libraries.c.phone.label("library_phone")
             ).select_from(
                 book_amounts
             ).join(
@@ -371,6 +372,8 @@ class AsyncCore:
                 users.c.full_name,
                 users.c.phone,
                 users.c.password,
+                discounts.c.subscription,
+                discounts.c.sub_level,
                 discounts.c.discount_value.label("subscription_value"),
                 users.c.birth_date,
                 users.c.is_admin

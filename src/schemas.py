@@ -69,6 +69,8 @@ class UsersWithDiscountValueDTO(BaseModel):
     full_name: str
     phone: str
     password: str
+    subscription: str
+    sub_level: int
     subscription_value: int
     birth_date: date
     is_admin: bool = False
@@ -147,7 +149,8 @@ class BooksAuthorGenreDTO(BaseModel):
     author_full_name: str
     genre_name: str
     library_id: int
-    library_address: str    
+    library_address: str
+    library_phone: str 
 
 class UserTransactionBooksDTO(BaseModel):
     id: int
