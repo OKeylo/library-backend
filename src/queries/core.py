@@ -9,7 +9,7 @@ from models import metadata_obj, authors, discounts, books, genres, users, book_
 from schemas import (
     DiscountsAddDTO, DiscountsDTO, DiscountsUpdateDTO, BooksAuthorGenreDTO,
     UsersAddDTO, BookTransactionsAddDTO, BookAmountsUpdateDTO, BookTransactionsDTO, UsersDTO,
-    UsersWithDiscountValueDTO, UserTransactionBooksDTO, BookTransactionsDeleteDTO
+    UsersWithDiscountValueDTO, UserTransactionBooksDTO, BookTransactionsDeleteDTO, UpdateUsersDicountDTO
 )
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -157,9 +157,9 @@ class AsyncCore:
     @staticmethod
     async def update(table: Table, record_id: int, dto: BaseModel):
         data = dto.model_dump(exclude_unset=True)
-
+        print(data)
         data = {key: value for key, value in data.items() if value is not None}
-
+        print(data)
         if not data:
             return record_id
 
@@ -468,3 +468,24 @@ class AsyncCore:
             result_dto = [UserTransactionBooksDTO.model_validate(row, from_attributes=True) for row in result_core]
         
         return result_dto
+    
+    @staticmethod
+    async def update_user_discount(record_id: int, data: UpdateUsersDicountDTO):
+        data = data.model_dump(exclude_unset=True)
+        print(data)
+        data = {key: value for key, value in data.items() if value is not None}
+        print(data)
+        if not data:
+            return record_id
+
+        async with async_engine.connect() as conn:
+            stmt = (
+                update(users)
+                .where(users.c.id == record_id)
+                .values(data)
+                .returning(users.c.id)
+            )
+            await conn.execute(stmt)
+            await conn.commit()
+
+        return record_id

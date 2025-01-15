@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from models_auth import auth_handler
 from models_auth.auth_bearer import JWTBearer
 from queries.core import AsyncCore
-from schemas import UsersAddDTO, UsersUpdateDTO, UsersDTO, UsersLoginDTO
+from schemas import UsersAddDTO, UsersUpdateDTO, UsersDTO, UsersLoginDTO, UpdateUsersDicountDTO
 from models import users
 from fastapi.params import Body
 from models_auth.auth_handler import signJWT
@@ -20,8 +20,9 @@ async def create_user(user: UsersAddDTO = Depends()):
     new_user_id = await AsyncCore.insert(users, user)
     return {"id": new_user_id}
 
-@router.put("/users/{id}")
-async def update_user(id: int, update_data: UsersUpdateDTO = Depends()):
+@router.put("/users/{id}", dependencies=[Depends(JWTBearer())])
+async def update_user(id: int, update_data: UsersUpdateDTO):
+    print("data update user: ", update_data)
     updated_user_id = await AsyncCore.update(users, id, update_data)
     return {"id": updated_user_id}
 
@@ -95,3 +96,9 @@ async def get_user_info(user_id: int):
         return user_info
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal Server Error")
+    
+@router.put("/users_discount/{id}", dependencies=[Depends(JWTBearer())])
+async def update_user(id: int, update_data: UpdateUsersDicountDTO):
+    print("data update user: ", update_data)
+    updated_user_id = await AsyncCore.update_user_discount(id, update_data)
+    return {"id": updated_user_id}
