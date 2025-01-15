@@ -58,8 +58,8 @@ books = Table(
     Column("price", Integer, nullable=False),
     Column("rating", Integer, CheckConstraint("rating >= 0 AND rating <= 10"), nullable=False),
     Column("age_limit", Integer, CheckConstraint("age_limit >= 0 AND age_limit <= 19"), nullable=False),
-    Column("id_genre", Integer, ForeignKey("genres.id"), nullable=True),
-    Column("id_author", Integer, ForeignKey("authors.id"), nullable=True)
+    Column("id_genre", Integer, ForeignKey("genres.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=True),
+    Column("id_author", Integer, ForeignKey("authors.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=True)
 )
 
 book_amounts = Table(
@@ -76,9 +76,9 @@ def default_return_date():
 book_transactions = Table(
     "book_transactions", metadata_obj,
     Column("id", Integer, primary_key=True),
-    Column("library_id", Integer, ForeignKey("libraries.id", ondelete="CASCADE"), nullable=False),
-    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-    Column("book_id", Integer, ForeignKey("books.id", ondelete="CASCADE"), nullable=False),
+    Column("library_id", Integer, ForeignKey("libraries.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False),
+    Column("book_id", Integer, ForeignKey("books.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False),
     Column("issue_date", Date, nullable=False, server_default=func.current_date()),
     Column("return_date", Date, nullable=False, server_default=func.current_date() + 40)
 )
