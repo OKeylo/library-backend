@@ -35,8 +35,15 @@ async def get_books_with_parameters(
     sort_field: str = "id",
     sort_order: str = "desc",
     name_contains: Optional[str] = None,
-    filter_field: str = "",
-    filter_value: str = None
+    filter_field: Optional[str] = "",
+    filter_value: Optional[str] = None,
+    genre: Optional[str] = None,
+    age_limit: Optional[int] = None,
+    rating_from: Optional[int] = None,
+    rating_to: Optional[int] = None,
+    price_from: Optional[int] = None,
+    price_to: Optional[int] = None,
+    sort_by: Optional[int] = 1,
 ):
-    books_list = await AsyncCore.select_books_with_parameters(sort_field, sort_order, name_contains, filter_field, filter_value)
+    books_list = await AsyncCore.select_books_with_parameters(sort_field, sort_order, name_contains, filter_field, filter_value, genre, age_limit, rating_from, rating_to, price_from, price_to, sort_by)
     return books_list

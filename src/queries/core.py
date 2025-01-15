@@ -82,15 +82,15 @@ class AsyncCore:
             await conn.execute(text("""
                 INSERT INTO books (name, language, page_number, price, rating, age_limit, id_genre, id_author)
                 VALUES
-                ('War and Peace', 'Russian', 1225, 500, 10, 18, 1, 1),
-                ('Principia Mathematica', 'English', 600, 1000, 9, 12, 2, 2),
+                ('War and Peace', 'Russian', 1225, 500, 5, 16, 1, 1),
+                ('Principia Mathematica', 'English', 600, 1000, 3, 12, 2, 2),
                 ('Harry Potter and the Philosopher''s Stone', 'English', 320, 400, 9, 6, 3, 3),
-                ('The Shining', 'English', 650, 700, 8, 18, 5, 4),
+                ('The Shining', 'English', 650, 700, 0, 6, 5, 4),
                 ('Murder on the Orient Express', 'English', 320, 350, 9, 18, 5, 5),
-                ('The Catcher in the Rye', 'English', 277, 300, 8, 18, 4, 1),
+                ('The Catcher in the Rye', 'English', 277, 300, 4, 0, 4, 1),
                 ('1984', 'English', 328, 400, 9, 18, 4, 2),
                 ('The Hobbit', 'English', 310, 500, 10, 12, 3, 3),
-                ('It', 'English', 1138, 800, 9, 18, 5, 4),
+                ('It', 'English', 1138, 800, 6, 18, 5, 4),
                 ('Sherlock Holmes: The Complete Collection', 'English', 2800, 1500, 10, 16, 5, 5);
             """))
 
@@ -235,7 +235,7 @@ class AsyncCore:
         return {"subscription": subscription, "sub_level": sub_level}
     
     @staticmethod
-    async def select_books_with_parameters(sort_field: str = "id", sort_order: str = "desc", name_contains: str = None, filter_field: str = "", filter_value: str = None):
+    async def select_books_with_parameters(sort_field: str = "id", sort_order: str = "desc", name_contains: str = None, filter_field: str = "", filter_value: str = None, genre: str = None, age_limit: int = None, rating_from: int = None, rating_to: int = None, price_from: int = None, price_to: int = None, sort_by: int= 1):
         available_columns = [col for col in books.columns.keys() if col not in ['id_author', 'id_genre']]
         available_columns += ['author_full_name', 'genre_name']
         
@@ -294,8 +294,31 @@ class AsyncCore:
                     stmt = stmt.where(filter_column == int(filter_value))
                 else:
                     raise HTTPException(400, f"Неподдерживаемый тип для фильтрации: {column_type}")
+            
+            if genre:
+                stmt = stmt.where(genres.c.name == genre)
 
-            stmt = stmt.order_by(order_clause(sort_column))
+            if age_limit:
+                stmt = stmt.where(books.c.age_limit >= age_limit)
+
+            if rating_from and rating_to:
+                stmt = stmt.where(books.c.rating.between(rating_from, rating_to))
+            elif rating_from:
+                stmt = stmt.where(books.c.rating >= rating_from)
+            elif rating_to:
+                stmt = stmt.where(books.c.rating <= rating_to)
+
+            if price_from and price_to:
+                stmt = stmt.where(books.c.price.between(price_from, price_to))
+            elif price_from:
+                stmt = stmt.where(books.c.price >= price_from)
+            elif price_to:
+                stmt = stmt.where(books.c.price <= price_to)
+
+            # stmt = stmt.order_by(order_clause(sort_column))
+            order_clause = asc if sort_by == 0 else desc
+            stmt = stmt.order_by(order_clause(books.c.id))
+
 
             res = await conn.execute(stmt)
             result_core = res.fetchall()
