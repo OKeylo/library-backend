@@ -299,7 +299,7 @@ class AsyncCore:
                 stmt = stmt.where(genres.c.name == genre)
 
             if age_limit:
-                stmt = stmt.where(books.c.age_limit >= age_limit)
+                stmt = stmt.where(books.c.age_limit <= age_limit)
 
             if rating_from and rating_to:
                 stmt = stmt.where(books.c.rating.between(rating_from, rating_to))
