@@ -30,8 +30,8 @@ class AsyncCore:
             await conn.execute(text("""
                 INSERT INTO libraries (address, phone, email, director_full_name)
                 VALUES
-                ('Moscow, Tverskaya, 1', '1234567890', 'library@example.com', 'Ivan Ivanov'),
-                ('Saint Petersburg, Nevsky Prospect, 50', '0987654321', 'contact@library.com', 'Olga Petrovna');
+                ('Moscow, Tverskaya, 1', '+78888888886', 'library@example.com', 'Ivan Ivanov'),
+                ('Saint Petersburg, Nevsky Prospect, 50', '+78888888887', 'contact@library.com', 'Olga Petrovna');
             """))
 
             # Вставка в таблицу genres
@@ -71,11 +71,11 @@ class AsyncCore:
             await conn.execute(text("""
                 INSERT INTO users (full_name, phone, password, subscription, sub_level, birth_date)
                 VALUES
-                ('Alexey Ivanov', 12345678901, '123', 'Basic', 1, '1995-05-15'),
-                ('Maria Petrova', 98765432100, '136', 'Premium', 2, '1992-08-22'),
-                ('Dmitry Fedorov', 555888777, '22952', 'Gold', 3, '1988-03-10'),
-                ('Olga Smirnova', 666777888, '8122', 'Student', 5, '2000-12-01'),
-                ('Ivan Kuznetsov', 777666555, '211', 'Platinum', 4, '1990-06-14');
+                ('Alexey Ivanov', +78888888881, '123', 'Basic', 1, '1995-05-15'),
+                ('Maria Petrova', +78888888882, '136', 'Premium', 2, '1992-08-22'),
+                ('Dmitry Fedorov', +78888888883, '22952', 'Gold', 3, '1988-03-10'),
+                ('Olga Smirnova', +78888888884, '8122', 'Student', 5, '2000-12-01'),
+                ('Ivan Kuznetsov', +78888888885, '211', 'Platinum', 4, '1990-06-14');
             """))
 
             # Вставка в таблицу books
