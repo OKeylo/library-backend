@@ -12,13 +12,13 @@ async def get_book_amounts():
 
 @router.post("/book_amounts")
 async def create_book_amount(book_amount: BookAmountsAddDTO = Depends()):
-    new_book_amount_id = await AsyncCore.insert(book_amounts, book_amount)
-    return {"id": new_book_amount_id}
+    new_book_amount = await AsyncCore.insert_book_amounts(book_amount)
+    return new_book_amount
 
 @router.put("/book_amounts/{library_id}/{book_id}")
 async def update_book_amount(library_id: int, book_id: int, update_data: BookAmountsUpdateDTO = Depends()):
-    updated_book_amount_id = await AsyncCore.update(book_amounts, (library_id, book_id), update_data)
-    return {"id": updated_book_amount_id}
+    updated_book_amount_id = await AsyncCore.update(book_amounts, library_id, book_id, update_data)
+    return updated_book_amount_id
 
 @router.delete("/book_amounts/{library_id}/{book_id}")
 async def delete_book_amount(library_id: int, book_id: int):
